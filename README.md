@@ -1,6 +1,6 @@
 # Font Filler
 
-A small, personal prototype for filling missing characters in a static TrueType or CFF OpenType font, one at a time or in reviewed batches. It shows missing or empty characters, creates a replacement, and previews and downloads a modified copy. For ä, ë, ï, ö, and ü it reuses the font’s diaeresis, letter dots, or punctuation when available, or can generate an accent with AI while preserving the original base letter. It can also build ñ when the font contains a usable tilde.
+A small, personal prototype for filling missing characters in a static TrueType or CFF OpenType font, one at a time or in reviewed batches. It shows missing or empty characters, creates a replacement, and previews and downloads a modified copy. For ä, ë, ï, ö, and ü it reuses the font’s diaeresis, letter dots, or punctuation when available, or can generate an accent with AI while preserving the original base letter. It also supports selected letters with acute, grave, circumflex, tilde, ring, macron, breve, caron, dot above, double acute, cedilla, ogonek, dot below, and comma below marks. It reuses available font outlines or can generate a mark with AI; acute marks can also use a suitable mirrored grave or rotated quote.
 
 ## Run locally
 
@@ -21,7 +21,7 @@ Static `.ttf` fonts with TrueType outlines and `.otf` fonts with CFF outlines ar
 
 The experiment is in `experiment/`. Font files are excluded from the repository; supply your own test fonts in `testFonts/` when needed.
 
-Diaeresis previews include accent size and position controls. New letters inherit the base letter’s advance and available pair kerning; an overhang warning flags marks extending beyond the advance. When an i dot cannot be separated safely, ï cannot yet be built. AI accent generation uses the same daily limit and requires review of the resulting mark.
+Accent previews include size and position controls. New letters inherit the base letter’s advance and available pair kerning; an overhang warning flags marks extending beyond the advance. When an i or j dot cannot be separated safely, letters that replace that dot cannot be built. Floating accents are checked for possible collisions, and attached accents for possible disconnection. When the default placement triggers a check, the app tries a small automatic position adjustment; approximate outline checks and adjusted results are flagged for review in individual and bulk previews. Manual position adjustments are applied relative to the corrected default and are checked without overriding them. AI accent generation uses the same daily limit and requires review of the resulting mark.
 
 ## Bulk workflow
 

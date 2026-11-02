@@ -21,7 +21,7 @@ import bulk_grid
 
 app = Flask(__name__, static_folder='static', static_url_path='/static')
 app.config['MAX_CONTENT_LENGTH'] = 4 * 1024 * 1024
-EXTRA_SYMBOLS = '‘’“”–—…•€£¥¢©®™¿¡«»‹›°×÷±µ§¶†‡äëïöüñ'
+EXTRA_SYMBOLS = '‘’“”–—…•€£¥¢©®™¿¡«»‹›°×÷±µ§¶†‡' + ''.join(accents.FAMILIES)
 SYMBOLS = ''.join(chr(code) for code in range(33, 127)) + EXTRA_SYMBOLS
 FLIP_SOURCES = {'¿': '?', '¡': '!'}
 MODEL = 'fal-ai/gpt-image-1.5/edit'
@@ -168,10 +168,14 @@ def generate_image(data, character, model=MODEL, reference_count=0, style_emphas
                   'Keep the symbol immediately recognizable as the requested character. Show only one black glyph, large and centered '
                   'on a plain white background, with clear edges for tracing; no labels, other characters, shadows, background texture or decoration unrelated to the font.')
     if accent:
+        mark = ('an inverted comma above the letter, for lowercase g with cedilla' if character=='ģ'
+                else 'an apostrophe-like side caron: a single small comma-shaped mark' if character in accents.SIDE_CARONS
+                else 'a diaeresis: exactly two separate dots side by side' if accents.FAMILIES[character]=='diaeresis'
+                else 'the '+accents.FAMILIES[character]+' diacritical mark')
         prompt = ('Use the first image as the base letter and the second as a typeface reference. '
-                  'Create only a diaeresis: exactly two separate black dots side by side, in the visual style of this font. '
+                  f'Create only {mark}, in black and in the visual style of this font. '
                   'Do not draw the letter itself, other characters, labels, shadows or decoration. '
-                  'Center the two dots on a plain white background with clear edges.')
+                  'Center the mark on a plain white background with clear edges.')
     payload = json.dumps({'prompt':prompt, 'image_urls':image_urls,
                           'image_size':'square_hd', 'num_images':1, 'output_format':'png', 'sync_mode':True}).encode()
     if model == BENCHMARK_MODELS['gpt']:
@@ -320,12 +324,15 @@ def upload():
         if not has_outline(font,cmap.get(ord(base))):
             accent_sources[ch]='missing base'
             continue
+        if base in 'ij' and accents.FAMILIES[ch] not in accents.BELOW:
+            try: accents.split_top(accents.contours(font,cmap.get(ord(base))))
+            except ValueError as exc:
+                accent_sources[ch]=str(exc)
+                continue
         try:
-            if base=='i': accents.split_top(accents.contours(font,cmap.get(ord(base))))
             accent_sources[ch]=accents.sources(font,ch)[1]
-        except ValueError as exc:
-            if ch == 'ñ': continue
-            accent_sources[ch]='AI accent' if base!='i' else str(exc)
+        except ValueError:
+            accent_sources[ch]='AI accent'
     return jsonify(session=True, family=family, missing=missing, present=[c for c in SYMBOLS if c not in missing], flippable=[c for c, source in FLIP_SOURCES.items() if has_outline(font, cmap.get(ord(source)))], accent_sources=accent_sources)
 
 @app.post('/api/generate')
@@ -338,7 +345,7 @@ def generate():
     if reference_count not in ('0','1','3','5'): raise ValueError('Invalid reference count.')
     style_emphasis=os.getenv('VERCEL_ENV') == 'preview' and request.form.get('style_emphasis') == '1'
     is_accent = request.form.get('method') == 'accent-ai'
-    if is_accent and (ch not in accents.BASES or ch == 'ñ'): raise ValueError('Choose a supported diaeresis letter.')
+    if is_accent and ch not in accents.BASES: raise ValueError('Choose a supported accented letter.')
     image=generate_image(data,ch,BENCHMARK_MODELS[variant],int(reference_count),style_emphasis,accent=is_accent)
     resized=Image.open(io.BytesIO(image)).convert('RGB'); resized.thumbnail((512,512))
     buffer=io.BytesIO(); resized.save(buffer,format='PNG',optimize=True); image=buffer.getvalue()
@@ -368,8 +375,11 @@ def bulk_prepare():
             else:
                 if not has_outline(font, cmap.get(ord(accents.BASES[ch]))): continue
                 accents.sources(font, ch)
-                data, _, warning = accents.build(font, data, ch)
-                if warning: issues.append(f'{ch}: accent extends beyond its advance; review spacing.')
+                data, _, checks = accents.build(font, data, ch, return_checks=True)
+                if checks['nudged']: issues.append(f'{ch}: accent was adjusted automatically; review placement.')
+                if checks['overhang']: issues.append(f'{ch}: accent extends beyond its advance; review spacing.')
+                if checks['collision']: issues.append(f'{ch}: floating accent may overlap the letter; review placement.')
+                if checks['unattached']: issues.append(f'{ch}: attached accent may be disconnected; review placement.')
             added.append(ch)
         except ValueError as exc:
             issues.append(f'{ch}: {exc}')
@@ -441,7 +451,7 @@ def export():
     flip = method == 'flip'
     is_accent = method in ('accent','accent-ai')
     if len(ch)!=1 or ch not in SYMBOLS or (not image and not flip and method!='accent'): raise ValueError('Generate a character first.')
-    if is_accent and (ch not in accents.BASES or (method == 'accent-ai' and ch == 'ñ')): raise ValueError('Choose a supported accented letter.')
+    if is_accent and ch not in accents.BASES: raise ValueError('Choose a supported accented letter.')
     image_data=image.read() if image else None
     def bounded(name, default, low, high):
         try: value=float(request.form.get(name,default))
@@ -449,7 +459,7 @@ def export():
         if not low<=value<=high: raise ValueError('Adjustment is out of range.')
         return value
     if is_accent:
-        data,source,warning=accents.build(read_font(data),data,ch,bounded('scale',1,.5,1.5),bounded('offset',0,-.5,.5),bounded('horizontal',0,-.5,.5),image_data if method=='accent-ai' else None,trace_path)
+        data,source,checks=accents.build(read_font(data),data,ch,bounded('scale',1,.5,1.5),bounded('offset',0,-.5,.5),bounded('horizontal',0,-.5,.5),image_data if method=='accent-ai' else None,trace_path,return_checks=True)
     else:
         data=build_font(data,image_data,ch,bounded('scale',1,.5,1.5),bounded('spacing',1,0,3),bounded('offset',0,-.5,.5),flip=flip)
         source,warning='',False
@@ -458,7 +468,10 @@ def export():
     response=send_file(io.BytesIO(data), mimetype=mime, as_attachment=True, download_name=f'font-filler.{extension}')
     if is_accent:
         response.headers['X-Accent-Source']=source
-        response.headers['X-Accent-Overhang']='1' if warning else '0'
+        response.headers['X-Accent-Overhang']='1' if checks['overhang'] else '0'
+        response.headers['X-Accent-Nudged']='1' if checks['nudged'] else '0'
+        response.headers['X-Accent-Collision']='1' if checks['collision'] else '0'
+        response.headers['X-Accent-Unattached']='1' if checks['unattached'] else '0'
     return response
 
 if __name__=='__main__': app.run(host='127.0.0.1',port=int(os.getenv('PORT','5050')),debug=False)

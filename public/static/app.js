@@ -3,7 +3,7 @@ let session = null, character = null, currentFile = null, candidateBlob = null, 
 const groups = [
   ['Capitals', 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'],
   ['Lowercase', 'abcdefghijklmnopqrstuvwxyz'],
-  ['Accented letters', 'äëïöüñ'],
+  ['Accented letters', 'àèìǹòùẁỳâĉêĝĥîĵôŝûŵŷãĩñõũỹäëïöüẅÿåůāēīōūăĕğĭŏŭǎčďěǐľňǒřšťǔžċḋėġṅżőűáćéíḱĺńóŕśúẃýźçģķļņŗşţąęįųḍḥḳḷṇṛṣṭẓșț'],
   ['Numbers', '0123456789'],
   ['Basic symbols', Array.from({length: 94}, (_, i) => String.fromCharCode(i + 33)).filter(c => !/[A-Za-z0-9]/.test(c)).join('')],
   ['Typographic punctuation', '‘’“”–—…•'],
@@ -39,7 +39,7 @@ function ready() {
   $('generate').disabled = !session || !character || !$('rights').checked || unavailable;
   const flip = flippable.includes(character);
   $('generate-text').textContent = accent ? (source === 'AI accent' ? 'Generate an accent' : 'Create accented letter') : flip ? 'Create from upright character' : 'Generate character';
-  $('method-note').textContent = unavailable ? 'This font needs a usable base letter and, for ï, a separable i dot.' : accent ? (source === 'AI accent' ? 'No suitable mark was found. Generation sends a specimen to fal and may incur API charges.' : `Uses the font’s ${source}; no image generation or API charge.`) : flip ? 'Uses the existing upright character; no image generation or API charge.' : 'Generation sends a rendered specimen to fal and may incur API charges. Limited to 100 attempts per day, resetting at midnight Pacific time.';
+  $('method-note').textContent = unavailable ? 'This font needs a usable base letter and, for some letters, a separable i or j dot.' : accent ? (source === 'AI accent' ? 'No suitable mark was found. Generation sends a specimen to fal and may incur API charges.' : `Uses the font’s ${source}; no image generation or API charge.`) : flip ? 'Uses the existing upright character; no image generation or API charge.' : 'Generation sends a rendered specimen to fal and may incur API charges. Limited to 100 attempts per day, resetting at midnight Pacific time.';
 }
 function resetResult() { revision++; clearTimeout(timer); $('empty').hidden = false; $('result').hidden = true; $('download').removeAttribute('href'); if(fontURL) URL.revokeObjectURL(fontURL); fontURL = null; }
 function drawSymbols(missing = []) {
@@ -106,7 +106,7 @@ $('rights').addEventListener('change', ready);
 async function create(forceAI=false){
  if(!session||!character||!$('rights').checked)return;
  const token=++generation, activeCharacter=character, flip=flippable.includes(character), accent=!!accentSources[character];
- const useAI=accent && activeCharacter !== 'ñ' && (forceAI || accentSources[character]==='AI accent');
+ const useAI=accent && (forceAI || accentSources[character]==='AI accent');
  resetResult(); $('generate').disabled=true; $('again').disabled=true;
  status(useAI ? `Generating an accent for ${activeCharacter}… This can take a minute.` : accent ? `Preparing ${activeCharacter} from your font…` : flip ? `Preparing ${activeCharacter} from its upright character…` : `Generating ${activeCharacter}… This can take a minute.`);
  try {
@@ -118,7 +118,7 @@ async function create(forceAI=false){
    }
    $('candidate').textContent='…'; $('candidate').style.fontFamily=''; $('candidate-label').textContent=activeCharacter;
    $('candidate-description').textContent=accent ? (useAI ? 'AI-generated accent on your original letter.' : `Accent made from the font’s ${accentSources[activeCharacter]}.`) : flip ? 'Rotated from the existing upright character in your font.' : 'Your traced character, shown in the updated font.';
-   $('again').hidden=flip || activeCharacter==='ñ'; $('again').textContent=accent ? (useAI ? '↻ Generate another AI accent' : '✳ Try an AI accent (may incur charges)') : '↻ Generate another';
+   $('again').hidden=flip; $('again').textContent=accent ? (useAI ? '↻ Generate another AI accent' : '✳ Try an AI accent (may incur charges)') : '↻ Generate another';
    $('spacing-control').hidden=accent; $('horizontal-control').hidden=!accent; $('fixed-note').hidden=accent; $('size-label').textContent=accent?'Accent size':'Size';
    $('preview').style.fontFamily=''; $('preview').textContent=exampleForCharacter(activeCharacter);
    for(const id of controls) $(id).value=(id==='offset'||id==='horizontal')?0:100;
@@ -129,7 +129,7 @@ $('generate').onclick=()=>create(false); $('again').onclick=()=>create(!!accentS
 function updateLabels(){ $('size-value').textContent=$('size').value+'%'; $('spacing-value').textContent=$('spacing').value+'%'; $('offset-value').textContent=$('offset').value; $('horizontal-value').textContent=$('horizontal').value; }
 async function preview(token=generation){
  const version=++revision; const data=new FormData(); data.append('font',currentFile);data.append('method',candidateMethod); if(candidateBlob) data.append('image',candidateBlob,'glyph.png');data.append('character',character);data.append('scale',Number($('size').value)/100);data.append('spacing',Number($('spacing').value)/100);data.append('offset',Number($('offset').value)/100);data.append('horizontal',Number($('horizontal').value)/100);
- try {const response=await post('/api/export',data); const overhang=response.headers.get('X-Accent-Overhang')==='1'; const blob=await response.blob(); if(version!==revision||token!==generation)return; const url=URL.createObjectURL(blob); const face=new FontFace('FontFillerPreview',`url(${url})`); await face.load(); if(version!==revision||token!==generation){URL.revokeObjectURL(url);return;} for(const existing of document.fonts) if(existing.family==='FontFillerPreview')document.fonts.delete(existing); document.fonts.add(face); $('candidate').textContent=character; $('candidate').style.fontFamily='FontFillerPreview, sans-serif'; $('candidate').setAttribute('aria-label', `Generated character: ${character}`); $('preview').style.fontFamily='FontFillerPreview, sans-serif'; $('download').href=url; $('download').download='font-filler.' + (blob.type === 'font/otf' ? 'otf' : 'ttf'); if(fontURL)URL.revokeObjectURL(fontURL); fontURL=url; status(overhang ? 'The accent extends beyond the letter’s advance. Check it beside neighboring characters.' : '');}
+ try {const response=await post('/api/export',data); const overhang=response.headers.get('X-Accent-Overhang')==='1', collision=response.headers.get('X-Accent-Collision')==='1', unattached=response.headers.get('X-Accent-Unattached')==='1', nudged=response.headers.get('X-Accent-Nudged')==='1'; const blob=await response.blob(); if(version!==revision||token!==generation)return; const url=URL.createObjectURL(blob); const face=new FontFace('FontFillerPreview',`url(${url})`); await face.load(); if(version!==revision||token!==generation){URL.revokeObjectURL(url);return;} for(const existing of document.fonts) if(existing.family==='FontFillerPreview')document.fonts.delete(existing); document.fonts.add(face); $('candidate').textContent=character; $('candidate').style.fontFamily='FontFillerPreview, sans-serif'; $('candidate').setAttribute('aria-label', `Generated character: ${character}`); $('preview').style.fontFamily='FontFillerPreview, sans-serif'; $('download').href=url; $('download').download='font-filler.' + (blob.type === 'font/otf' ? 'otf' : 'ttf'); if(fontURL)URL.revokeObjectURL(fontURL); fontURL=url; status([nudged ? 'The accent position was adjusted automatically. Review it and use the controls to change it.' : '', overhang ? 'The accent extends beyond the letter’s advance. Check it beside neighboring characters.' : '', collision ? 'The floating accent may overlap the letter. Check its position.' : '', unattached ? 'The accent may not connect to the letter. Check its position.' : ''].filter(Boolean).join(' '));}
  catch(e){if(version===revision && token===generation)status(e.message);}
 }
 for(const id of controls) $(id).addEventListener('input',()=>{updateLabels(); revision++; $('download').removeAttribute('href'); clearTimeout(timer); timer=setTimeout(()=>preview(),200);});

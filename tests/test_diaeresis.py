@@ -26,7 +26,7 @@ class Diaeresis(unittest.TestCase):
             with self.subTest(name=name):
                 data=(ROOT/'testFonts'/name).read_bytes();original=TTFont(io.BytesIO(data))
                 for ch,base in accents.BASES.items():
-                    if ch == 'ñ': continue  # A tilde is one mark, not two dots.
+                    if accents.FAMILIES[ch] != 'diaeresis': continue
                     result=self.post('/api/export',data,method='accent',character=ch)
                     self.assertEqual(result.status_code,200,result.json)
                     generated=TTFont(io.BytesIO(result.data));g=generated.getBestCmap()[ord(ch)];base_name=original.getBestCmap()[ord(base)]
