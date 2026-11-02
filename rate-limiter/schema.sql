@@ -1,0 +1,1 @@
+CREATE TABLE IF NOT EXISTS daily_usage (day TEXT PRIMARY KEY, calls INTEGER NOT NULL CHECK (calls >= 0 AND calls <= 100));

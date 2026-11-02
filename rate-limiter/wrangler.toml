@@ -1,0 +1,8 @@
+name = "font-filler-rate-gate"
+main = "worker.js"
+compatibility_date = "2026-10-01"
+workers_dev = true
+[[d1_databases]]
+binding = "DB"
+database_name = "font-filler-rate-limit"
+database_id = "e2d41bdb-7566-4088-a9a5-dde92893d963"

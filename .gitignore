@@ -1,0 +1,25 @@
+.venv/
+__pycache__/
+.DS_Store
+.env
+
+.vercel/
+.vercel
+.env*
+
+# Font files and local font collections
+*.ttf
+*.otf
+*.ttc
+*.otc
+*.woff
+*.woff2
+*.eot
+*.pfa
+*.pfb
+*.dfont
+*.sfd
+*.ufo/
+*.glyphs
+*.glyphspackage/
+testFonts/

@@ -1,0 +1,68 @@
+[
+  {
+    "font": "ostrich",
+    "model": "ref1",
+    "status": "200",
+    "result": "ok"
+  },
+  {
+    "font": "mono",
+    "model": "ref1",
+    "status": "200",
+    "result": "ok"
+  },
+  {
+    "font": "kool",
+    "model": "ref1",
+    "status": "200",
+    "result": "ok"
+  },
+  {
+    "font": "signature",
+    "model": "ref1",
+    "status": "200",
+    "result": "ok"
+  },
+  {
+    "font": "ostrich",
+    "model": "ref3",
+    "status": "200",
+    "result": "ok"
+  },
+  {
+    "font": "kool",
+    "model": "ref3",
+    "status": "200",
+    "result": "ok"
+  },
+  {
+    "font": "mono",
+    "model": "ref3",
+    "status": "200",
+    "result": "ok"
+  },
+  {
+    "font": "signature",
+    "model": "ref3",
+    "status": "200",
+    "result": "ok"
+  },
+  {
+    "font": "mono",
+    "model": "ref5",
+    "status": "200",
+    "result": "ok"
+  },
+  {
+    "font": "kool",
+    "model": "ref5",
+    "status": "200",
+    "result": "ok"
+  },
+  {
+    "font": "signature",
+    "model": "ref5",
+    "status": "200",
+    "result": "ok"
+  }
+]
