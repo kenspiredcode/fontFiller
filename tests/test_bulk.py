@@ -48,6 +48,19 @@ class BulkTests(unittest.TestCase):
         self.assertIn('CFF ',font)
         for char in 'A¿ñ': self.assertTrue(app.has_outline(font,font.getBestCmap()[ord(char)]))
 
+    def test_workspace_refresh_reports_newly_added_glyphs(self):
+        data=without(self.original,'éñ')
+        first=self.client.post('/api/export',data=self.upload(data,character='é',method='accent'),content_type='multipart/form-data')
+        self.assertEqual(first.status_code,200,first.json)
+        info=self.client.post('/api/font',data=self.upload(first.data,workspace='1'),content_type='multipart/form-data')
+        self.assertEqual(info.status_code,200,info.json)
+        self.assertNotIn('é',info.json['missing']);self.assertIn('ñ',info.json['missing'])
+        self.assertIn('mark_groups',info.json)
+        second=self.client.post('/api/export',data=self.upload(first.data,character='ñ',method='accent'),content_type='multipart/form-data')
+        self.assertEqual(second.status_code,200,second.json)
+        font=app.read_font(second.data)
+        self.assertTrue(all(app.has_outline(font,font.getBestCmap().get(ord(ch))) for ch in 'éñ'))
+
     def test_generate_and_apply_reviewed_only(self):
         data=without(self.original,'@#$')
         image=Image.new('RGB',(300,300),'white'); draw=ImageDraw.Draw(image)
@@ -66,6 +79,39 @@ class BulkTests(unittest.TestCase):
         self.assertEqual(applied.status_code,200,applied.json)
         self.assertEqual(applied.json['added'],['@']);self.assertIn('#',applied.json['remaining'])
         font=app.read_font(base64.b64decode(applied.json['font']));self.assertTrue(app.has_outline(font,font.getBestCmap()[ord('@')]))
+
+    def test_one_reviewed_mark_builds_multiple_letters(self):
+        data=without(self.original, 'áé')
+        image=Image.new('RGB',(100,100),'white'); ImageDraw.Draw(image).rectangle((35,25,60,70),fill='black')
+        out=io.BytesIO(); image.save(out,'PNG')
+        with patch.object(app.accents,'sources',side_effect=ValueError('missing mark')):
+            groups=app.missing_mark_groups(data)
+            self.assertIn('á',groups['acute']); self.assertIn('é',groups['acute'])
+            representative=groups['acute'][0]
+            with patch.object(app,'trace_path',return_value='M 0 0 L 20 0 L 20 40 L 0 40 Z'):
+                result=self.client.post('/api/bulk/apply-marks',data=self.upload(data,characters=representative,images=(io.BytesIO(out.getvalue()),'mark.png')),content_type='multipart/form-data')
+        self.assertEqual(result.status_code,200,result.json)
+        self.assertTrue({'á','é'}.issubset(result.json['added']))
+        font=app.read_font(base64.b64decode(result.json['font']))
+        for ch in 'áé': self.assertTrue(app.has_outline(font,font.getBestCmap()[ord(ch)]))
+
+    def test_mark_grid_uses_lowercase_specimen(self):
+        data=without(self.original,'á')
+        image=Image.new('RGB',(90,90),'white'); ImageDraw.Draw(image).rectangle((20,20,40,40),fill='black')
+        out=io.BytesIO(); image.save(out,'PNG')
+        response={'images':[{'url':'data:image/png;base64,'+base64.b64encode(out.getvalue()).decode()}]}
+        class FakeResponse(io.BytesIO):
+            def __enter__(self): return self
+            def __exit__(self,*args): self.close()
+        with patch.dict(os.environ,{'FAL_KEY':'test'}), patch.object(app,'missing_mark_groups',return_value={'acute':['á']}), patch.object(app,'specimen',return_value=b'lowercase-reference') as reference, patch.object(app,'reserve_generation'), patch.object(app,'urlopen',return_value=FakeResponse(json.dumps(response).encode())):
+            result=self.client.post('/api/bulk/generate',data=self.upload(data,characters='á',grid='3',kind='marks'),content_type='multipart/form-data')
+        self.assertEqual(result.status_code,200,result.json)
+        reference.assert_called_once_with(data,lowercase=True)
+
+    def test_mark_grid_rejects_nonrepresentative_before_charging(self):
+        with patch.object(app,'reserve_generation') as reserve:
+            result=self.client.post('/api/bulk/generate',data=self.upload(without(self.original,'@'),characters='@',grid='3',kind='marks'),content_type='multipart/form-data')
+        self.assertEqual(result.status_code,400); reserve.assert_not_called()
 
     def test_generation_rejects_present_character_before_charging(self):
         with patch.object(app,'reserve_generation') as reserve:

@@ -99,13 +99,17 @@ def trace_path(image_data):
     return ' '.join(paths)
 
 
-def specimen(data):
+def specimen(data, lowercase=False):
     # Individually spaced glyphs avoid clipping even with elaborate swashes.
     f = ImageFont.truetype(io.BytesIO(data), 100)
     source_font = read_font(data); source_cmap = source_font.getBestCmap()
-    canvas = Image.new('RGB', (1400, 840), 'white')
+    if lowercase and not any(has_outline(source_font, source_cmap.get(ord(ch))) for ch in 'abcdefghijklmnopqrstuvwxyz'):
+        rows = ('ABCDEFGHIJKLM', 'NOPQRSTUVWXYZ')
+    else:
+        rows = ('abcdefghijklm', 'nopqrstuvwxyz') if lowercase else ('ABCDEFGHJKLM', 'NOPQRSTUVWXYZ', 'abcdefghijklm', '0123456789')
+    canvas = Image.new('RGB', (1400, 205 * len(rows) + 20), 'white')
     draw = ImageDraw.Draw(canvas)
-    for row, chars in enumerate(('ABCDEFGHJKLM', 'NOPQRSTUVWXYZ', 'abcdefghijklm', '0123456789')):
+    for row, chars in enumerate(rows):
         for col, ch in enumerate(chars):
             if not has_outline(source_font, source_cmap.get(ord(ch))): continue
             x, y = 20 + col * 105, 10 + row * 205
@@ -155,7 +159,7 @@ def generate_image(data, character, model=MODEL, reference_count=0, style_emphas
         image=Image.new('RGB',(768,768),'white'); draw=ImageDraw.Draw(image)
         box=draw.textbbox((0,0),base,font=f)
         draw.text(((768-(box[2]-box[0]))/2-box[0],(768-(box[3]-box[1]))/2-box[1]),base,font=f,fill='black')
-        buffer=io.BytesIO();image.save(buffer,format='PNG');references=[buffer.getvalue(),specimen(data)]
+        buffer=io.BytesIO();image.save(buffer,format='PNG');references=[buffer.getvalue(),specimen(data, lowercase=True)]
     image_urls = ['data:image/png;base64,' + base64.b64encode(image).decode('ascii') for image in references]
     prompt = (f'Use the provided image as a typeface style reference. Create exactly one {character} character '
               'in a matching typeface: match the letterforms’ stroke weight, proportions, slant and distinctive details. '
@@ -333,7 +337,9 @@ def upload():
             accent_sources[ch]=accents.sources(font,ch)[1]
         except ValueError:
             accent_sources[ch]='AI accent'
-    return jsonify(session=True, family=family, missing=missing, present=[c for c in SYMBOLS if c not in missing], flippable=[c for c, source in FLIP_SOURCES.items() if has_outline(font, cmap.get(ord(source)))], accent_sources=accent_sources)
+    info = dict(session=True, family=family, missing=missing, present=[c for c in SYMBOLS if c not in missing], flippable=[c for c, source in FLIP_SOURCES.items() if has_outline(font, cmap.get(ord(source)))], accent_sources=accent_sources)
+    if request.form.get('workspace') == '1': info['mark_groups'] = missing_mark_groups(data)
+    return jsonify(info)
 
 @app.post('/api/generate')
 def generate():
@@ -362,6 +368,26 @@ def encode_font(data):
     return base64.b64encode(data).decode('ascii')
 
 
+def missing_mark_groups(data):
+    """Group buildable missing letters by the exact mark they need."""
+    font = read_font(data); cmap = font.getBestCmap(); groups = {}
+    for ch in missing_characters(data):
+        if ch not in accents.BASES or not has_outline(font, cmap.get(ord(accents.BASES[ch]))): continue
+        try:
+            if accents.BASES[ch] in 'ij' and accents.FAMILIES[ch] not in accents.BELOW:
+                accents.split_top(accents.contours(font, cmap.get(ord(accents.BASES[ch]))))
+            try:
+                accents.sources(font, ch)
+                continue
+            except ValueError:
+                pass
+        except ValueError:
+            continue
+        key = 'inverted comma above' if ch == 'ģ' else 'side caron' if ch in accents.SIDE_CARONS else accents.FAMILIES[ch]
+        groups.setdefault(key, []).append(ch)
+    return groups
+
+
 @app.post('/api/bulk/prepare')
 def bulk_prepare():
     data = uploaded_font(); added = []; issues = []
@@ -383,7 +409,7 @@ def bulk_prepare():
             added.append(ch)
         except ValueError as exc:
             issues.append(f'{ch}: {exc}')
-    return jsonify(font=encode_font(data), added=added, remaining=missing_characters(data), warnings=issues)
+    return jsonify(font=encode_font(data), added=added, remaining=missing_characters(data), warnings=issues, mark_groups=missing_mark_groups(data))
 
 
 @app.post('/api/bulk/generate')
@@ -396,6 +422,10 @@ def bulk_generate():
     if not chars or len(chars) > size*size or len(set(chars)) != len(chars): raise ValueError('Invalid batch of characters.')
     missing = set(missing_characters(data))
     if any(ch not in missing for ch in chars): raise ValueError('Only missing supported characters can be generated.')
+    mark_mode = request.form.get('kind') == 'marks'
+    groups = missing_mark_groups(data) if mark_mode else {}
+    if mark_mode and (size != 3 or any(ch not in [v[0] for v in groups.values()] for ch in chars)):
+        raise ValueError('Choose missing accent marks for a 3×3 grid.')
     key = os.getenv('FAL_KEY')
     if not key: raise ValueError('The fal API key is not configured. Contact the app owner.')
     positions = [f'row {i//size+1}, column {i%size+1}: {json.dumps(ch, ensure_ascii=False)}' for i,ch in enumerate(chars)]
@@ -404,7 +434,16 @@ def bulk_generate():
               + '; '.join(positions) + '. Leave all other cells blank. Match the typeface stroke weight, proportions, '
               'slant and distinctive details. Center each glyph within its cell with generous whitespace, including at all image edges. '
               'No grid lines, labels, extra characters, texture or decoration.')
-    reference = 'data:image/png;base64,' + base64.b64encode(specimen(data)).decode('ascii')
+    if mark_mode:
+        names = {v[0]: k for k, v in groups.items()}
+        positions = [f'row {i//3+1}, column {i%3+1}: {names[ch]}' for i, ch in enumerate(chars)]
+        prompt = ('Use the provided typeface specimen as a style reference. Draw isolated black diacritical marks '
+                  'in a 3 by 3 grid on a white square canvas, one mark per specified cell: ' + '; '.join(positions) +
+                  '. A diaeresis has two separate dots; a double acute has two separate strokes. '
+                  'A side caron is a small apostrophe-like mark. Leave unused cells empty. Match the font’s stroke and style. '
+                  'Center each mark with generous whitespace. No letters, grid lines, labels, or decoration.')
+    reference_image = specimen(data, lowercase=True) if mark_mode or all(ch in accents.BASES for ch in chars) else specimen(data)
+    reference = 'data:image/png;base64,' + base64.b64encode(reference_image).decode('ascii')
     payload = json.dumps({'prompt': prompt, 'image_urls': [reference], 'image_size': '1024x1024',
                           'num_images': 1, 'output_format': 'png', 'sync_mode': True, 'quality': 'low',
                           'input_fidelity': 'low', 'background': 'opaque'}).encode()
@@ -421,8 +460,30 @@ def bulk_generate():
     except ValueError as exc: raise ValueError('fal returned an invalid image.') from exc
     crops=[]
     for ch, crop, warnings in bulk_grid.split(image, chars, size):
-        crops.append({'character':ch, 'image':'data:image/png;base64,'+base64.b64encode(crop).decode('ascii') if crop else None, 'warnings':warnings})
+        crops.append({'character':ch, 'kind':'mark' if mark_mode else 'glyph', 'label': names[ch] if mark_mode else ch, 'letters': groups[names[ch]] if mark_mode else [ch], 'image':'data:image/png;base64,'+base64.b64encode(crop).decode('ascii') if crop else None, 'warnings':warnings})
     return jsonify(crops=crops)
+
+
+@app.post('/api/bulk/apply-marks')
+def bulk_apply_marks():
+    data = uploaded_font(); chars = request.form.get('characters', ''); files = request.files.getlist('images')
+    groups = missing_mark_groups(data); representatives = {v[0]: (k, v) for k, v in groups.items()}
+    if not chars or len(chars) > 9 or len(chars) != len(files) or len(set(chars)) != len(chars) or any(ch not in representatives for ch in chars):
+        raise ValueError('Choose up to nine distinct missing marks.')
+    added = []; failed = []; warnings = []; processed = []
+    for ch, file in zip(chars, files):
+        name, letters = representatives[ch]; image = file.read(); success = False
+        for letter in letters:
+            try:
+                data, _, checks = accents.build(read_font(data), data, letter, image_data=image, trace=trace_path, return_checks=True)
+                added.append(letter); success = True
+                for check, message in [('nudged', 'adjusted automatically'), ('overhang', 'extends beyond its advance'), ('collision', 'may overlap the letter'), ('unattached', 'may be disconnected')]:
+                    if checks[check]: warnings.append(f'{letter}: accent {message}; review placement.')
+            except ValueError as exc:
+                failed.append({'character': letter, 'error': str(exc)})
+        if success: processed.append(ch)
+    return jsonify(font=encode_font(data), added=added, processed=processed, failed=failed, warnings=warnings,
+                   remaining=missing_characters(data), mark_groups=missing_mark_groups(data))
 
 
 @app.post('/api/bulk/apply')

@@ -25,6 +25,9 @@ FAMILY_CHARS = {
     'cedilla': 'çģķļņŗşţ', 'ogonek': 'ąęįų',
     'dot below': 'ḍḥḳḷṇṛṣṭẓ', 'comma below': 'șț',
 }
+# Each supported lowercase letter has a corresponding precomposed capital.
+FAMILY_CHARS = {family: chars + chars.upper() for family, chars in FAMILY_CHARS.items()}
+ACUTE_BASES.update({ch.upper(): base.upper() for ch, base in list(ACUTE_BASES.items())})
 FAMILIES = {char: family for family, chars in FAMILY_CHARS.items() for char in chars}
 BASES = {char: unicodedata.normalize('NFD', char)[0] for char in FAMILIES}
 BELOW = {'cedilla', 'ogonek', 'dot below', 'comma below'}
@@ -37,7 +40,7 @@ FAMILY_ATTACHMENT = {
     'cedilla': 'attached', 'ogonek': 'attached',
     'dot below': 'floating', 'comma below': 'floating',
 }
-ATTACHMENT_OVERRIDES = {char: 'floating' for char in 'ģķļņŗ'}
+ATTACHMENT_OVERRIDES = {char: 'floating' for char in 'ģķļņŗĶĻŅŖ'}
 
 def attachment_kind(char):
     return ATTACHMENT_OVERRIDES.get(char, FAMILY_ATTACHMENT[FAMILIES[char]])
@@ -219,7 +222,7 @@ def orient_acute(items, mirror=False):
         rec=RecordingPen();contour.replay(TransformPen(rec,matrix));transformed.append(rec)
     return transformed
 
-SIDE_CARONS = 'ďľť'
+SIDE_CARONS = 'ďľťĽ'
 
 def side_caron_source(font, char):
     cmap=font.getBestCmap()
@@ -293,7 +296,7 @@ def sources(font, char):
         raise ValueError('No usable above-g cedilla was found. Try the AI accent.')
     if family in BELOW:
         candidates=FAMILY_CHARS[family].replace('ģ','')
-        if family=='cedilla': candidates='çşţ' if char in 'çşţ' else 'ķļņŗ'
+        if family=='cedilla': candidates='çşţÇŞŢĢ' if attachment_kind(char)=='attached' else 'ķļņŗĶĻŅŖ'
         found=extracted_mark(font,char,candidates)
         if found: return found[0], 'existing '+family+' from letter', False
         if family=='dot below':
@@ -306,7 +309,7 @@ def sources(font, char):
             return items, 'existing '+family, False
     if family not in BELOW:
         for other in FAMILY_CHARS[family]:
-            if other==char: continue
+            if other==char or other in SIDE_CARONS: continue
             try: mark,_=split_top(contours(font,cmap.get(ord(other))))
             except ValueError: continue
             if family!='diaeresis' or is_pair(mark): return mark, 'existing '+family, False
@@ -372,7 +375,7 @@ def reference_shift(font, char):
     # A few families lack an existing version of this base; look for a
     # consistent font-wide tendency among the common lowercase vowels.
     measures=[]
-    for ref in 'aeou':
+    for ref in ('AEOU' if base.isupper() else 'aeou'):
         vals=offsets(ref)
         if len(vals)>=2: measures.append(statistics.median(vals))
     if len(measures)>=2 and max(measures)-min(measures)<=.15:
@@ -410,11 +413,28 @@ def ai_mark(image_data, trace, family):
     im=Image.open(io.BytesIO(image_data)).convert('L')
     if im.width*im.height>12_000_000:raise ValueError('Generated image is too large.')
     im.thumbnail((512,512)); a=np.asarray(im)<128
-    cols=np.flatnonzero(a.any(axis=0)); groups=[]
-    for x in cols:
-        if not groups or x>groups[-1][-1]+1:groups.append([])
-        groups[-1].append(x)
-    if family in ('diaeresis', 'double acute'):
+    def column_groups(columns):
+        columns=np.unique(columns); groups=[]
+        for x in columns:
+            if not groups or x>groups[-1][-1]+1:groups.append([])
+            groups[-1].append(x)
+        return groups
+    ys,xs=np.nonzero(a)
+    groups=column_groups(xs)
+    if family == 'double acute':
+        # Slanted strokes can overlap in their ordinary x projection even when
+        # the ink is separate. Project along several slants to reveal the gap.
+        # Reject one-pixel gaps, which can be artifacts of the projection.
+        paired=False
+        for slope in np.linspace(-.8,.8,33):
+            projected=np.rint(xs+slope*ys).astype(int)
+            parts=column_groups(projected)
+            if (len(parts)==2 and min(len(g) for g in parts)>=3 and
+                    parts[1][0]-parts[0][-1]>=3):
+                paired=True;break
+        if not paired:
+            raise ValueError('The generated accent could not be isolated as two marks. Try again.')
+    elif family == 'diaeresis':
         if len(groups)!=2 or min(len(g) for g in groups)<3:
             raise ValueError('The generated accent could not be isolated as two marks. Try again.')
     elif len(groups)!=1 or len(groups[0])<3:
@@ -581,6 +601,10 @@ def build(font,data,char,scale=1,offset=0,horizontal=0,image_data=None,trace=Non
     # Match the new outline's left edge so an overhanging mark cannot shift
     # the preserved base outline during save or rendering.
     font['hmtx'][name]=(advance,round(min(bx0,left)))
+    # Windows uses these bounds to clip ink, including accents above capitals.
+    if 'OS/2' in font:
+        font['OS/2'].usWinAscent=max(font['OS/2'].usWinAscent, math.ceil(max(by1,bottom+mh*sf,0)))
+        font['OS/2'].usWinDescent=max(font['OS/2'].usWinDescent, math.ceil(max(-by0,-bottom,0)))
     inherit_kerning(font,{name:base_name})
     for table in font['cmap'].tables:
         if table.isUnicode():table.cmap[ord(char)]=name
