@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="650" viewBox="0 0 1000 650" role="img" aria-labelledby="title desc">
+  <title id="title">Font Filler routes for missing characters</title>
+  <desc id="desc">Four schematic examples show rotating a question mark, reusing periods for an ellipsis, combining a base letter with an accent, and tracing a generated whole glyph.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#766ab0"/></marker>
+    <style>
+      .bg{fill:#f7f6fb}.card{fill:#fff;stroke:#e3dfef;stroke-width:2}.label{font:700 17px Arial,sans-serif;fill:#332c4d}.small{font:14px Arial,sans-serif;fill:#655f72}.glyph{font:64px Georgia,serif;fill:#2b2440}.accent{font:64px Georgia,serif;fill:#7763bc}.flow{stroke:#766ab0;stroke-width:3;fill:none;marker-end:url(#arrow)}.chip{fill:#f0edf9}.headline{font:700 25px Arial,sans-serif;fill:#29213f}
+    </style>
+  </defs>
+  <rect class="bg" width="1000" height="650" rx="18"/>
+  <text x="36" y="46" class="headline">Four ways to fill a gap</text>
+  <text x="36" y="72" class="small">Illustrative examples · actual outlines and available routes depend on the font</text>
+  <g transform="translate(25 95)">
+    <rect class="card" width="950" height="115" rx="12"/>
+    <text x="22" y="30" class="label">1  Rotate an existing outline</text>
+    <text x="250" y="80" class="glyph" text-anchor="middle">?</text>
+    <path class="flow" d="M 304 60 H 445"/>
+    <text x="375" y="48" class="small" text-anchor="middle">rotate 180°</text>
+    <text x="510" y="80" class="glyph" text-anchor="middle">¿</text>
+    <text x="675" y="65" class="small">No image generation</text>
+    <text x="675" y="86" class="small">when the source exists</text>
+  </g>
+  <g transform="translate(25 225)">
+    <rect class="card" width="950" height="115" rx="12"/>
+    <text x="22" y="30" class="label">2  Assemble existing outlines</text>
+    <text x="250" y="80" class="glyph" text-anchor="middle">.</text>
+    <path class="flow" d="M 304 60 H 445"/>
+    <text x="375" y="48" class="small" text-anchor="middle">repeat and space</text>
+    <text x="510" y="80" class="glyph" text-anchor="middle">…</text>
+    <text x="675" y="65" class="small">Other recipes combine</text>
+    <text x="675" y="86" class="small">or reshape font outlines</text>
+  </g>
+  <g transform="translate(25 355)">
+    <rect class="card" width="950" height="115" rx="12"/>
+    <text x="22" y="30" class="label">3  Build from base + mark</text>
+    <text x="222" y="83" class="glyph" text-anchor="middle">o</text>
+    <text x="275" y="79" class="small" text-anchor="middle">+</text>
+    <text x="325" y="84" class="accent" text-anchor="middle">¨</text>
+    <path class="flow" d="M 365 60 H 445"/>
+    <text x="510" y="80" class="glyph" text-anchor="middle">ö</text>
+    <text x="675" y="65" class="small">Reuse a mark, or generate</text>
+    <text x="675" y="86" class="small">one while keeping the base</text>
+  </g>
+  <g transform="translate(25 485)">
+    <rect class="card" width="950" height="115" rx="12"/>
+    <text x="22" y="30" class="label">4  Generate a whole glyph</text>
+    <rect x="194" y="43" width="112" height="53" rx="6" class="chip"/>
+    <text x="250" y="66" class="small" text-anchor="middle">font specimen</text>
+    <text x="250" y="85" class="small" text-anchor="middle">+ target</text>
+    <path class="flow" d="M 319 70 H 386"/>
+    <rect x="398" y="43" width="120" height="53" rx="6" class="chip"/>
+    <text x="458" y="66" class="small" text-anchor="middle">generated</text>
+    <text x="458" y="85" class="small" text-anchor="middle">image</text>
+    <path class="flow" d="M 530 70 H 594"/>
+    <text x="648" y="82" class="glyph" text-anchor="middle">&amp;</text>
+    <text x="735" y="65" class="small">Trace and review</text>
+    <text x="735" y="86" class="small">the new outline</text>
+  </g>
+  <text x="36" y="630" class="small">Bulk preparation uses available font outlines first, then offers generated marks and remaining glyphs for review.</text>
+</svg>
