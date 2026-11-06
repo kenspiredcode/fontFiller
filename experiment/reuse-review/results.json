@@ -1,0 +1,364 @@
+[
+  {
+    "font": "AbhayaLibre-Regular.ttf",
+    "built": 17,
+    "recipes": 17,
+    "issues": []
+  },
+  {
+    "font": "AbrilFatface-Regular.ttf",
+    "built": 17,
+    "recipes": 17,
+    "issues": []
+  },
+  {
+    "font": "AlexBrush-Regular.ttf",
+    "built": 17,
+    "recipes": 17,
+    "issues": []
+  },
+  {
+    "font": "Allura-Regular.ttf",
+    "built": 17,
+    "recipes": 17,
+    "issues": []
+  },
+  {
+    "font": "Cameoantique-VLPw.ttf",
+    "built": 12,
+    "recipes": 17,
+    "issues": [
+      {
+        "character": "\u0161",
+        "reason": "No usable caron mark was found. Try the AI accent."
+      },
+      {
+        "character": "\u203a",
+        "reason": "source glyph missing"
+      },
+      {
+        "character": "\u2039",
+        "reason": "source glyph missing"
+      },
+      {
+        "character": "\u00ab",
+        "reason": "source glyph missing"
+      },
+      {
+        "character": "\u00bb",
+        "reason": "source glyph missing"
+      }
+    ]
+  },
+  {
+    "font": "CfSpaceshipRegular-2d4e.ttf",
+    "built": 2,
+    "recipes": 17,
+    "issues": [
+      {
+        "character": "\u2022",
+        "reason": "source glyph missing"
+      },
+      {
+        "character": "\u010b",
+        "reason": "No usable dot above mark was found. Try the AI accent."
+      },
+      {
+        "character": "\u0161",
+        "reason": "No usable caron mark was found. Try the AI accent."
+      },
+      {
+        "character": "\u016b",
+        "reason": "This font needs the original base letter."
+      },
+      {
+        "character": "\u00b1",
+        "reason": "source glyph missing"
+      },
+      {
+        "character": "\u203a",
+        "reason": "source glyph missing"
+      },
+      {
+        "character": "\u2039",
+        "reason": "source glyph missing"
+      },
+      {
+        "character": "\u00ab",
+        "reason": "source glyph missing"
+      },
+      {
+        "character": "\u00bb",
+        "reason": "source glyph missing"
+      },
+      {
+        "character": "\u201c",
+        "reason": "source glyph missing"
+      },
+      {
+        "character": "\u201d",
+        "reason": "source glyph missing"
+      },
+      {
+        "character": "\u2026",
+        "reason": "source glyph missing"
+      },
+      {
+        "character": "\u00ba",
+        "reason": "source glyph missing"
+      },
+      {
+        "character": "\u00e5",
+        "reason": "No usable ring mark was found. Try the AI accent."
+      },
+      {
+        "character": "\u00f7",
+        "reason": "source glyph missing"
+      }
+    ]
+  },
+  {
+    "font": "Dknanuk-q6G6.otf",
+    "built": 11,
+    "recipes": 17,
+    "issues": [
+      {
+        "character": "\u0161",
+        "reason": "No usable caron mark was found. Try the AI accent."
+      },
+      {
+        "character": "\u00b1",
+        "reason": "source glyph missing"
+      },
+      {
+        "character": "\u203a",
+        "reason": "source glyph missing"
+      },
+      {
+        "character": "\u2039",
+        "reason": "source glyph missing"
+      },
+      {
+        "character": "\u00ab",
+        "reason": "source glyph missing"
+      },
+      {
+        "character": "\u00bb",
+        "reason": "source glyph missing"
+      }
+    ]
+  },
+  {
+    "font": "KoolBeans-eerm.ttf",
+    "built": 15,
+    "recipes": 17,
+    "issues": [
+      {
+        "character": "\u201c",
+        "reason": "source glyph missing"
+      },
+      {
+        "character": "\u201d",
+        "reason": "source glyph missing"
+      }
+    ]
+  },
+  {
+    "font": "MechanicalBold-oOmA.otf",
+    "built": 17,
+    "recipes": 17,
+    "issues": []
+  },
+  {
+    "font": "Pazea-2v4Wd.ttf",
+    "built": 2,
+    "recipes": 17,
+    "issues": [
+      {
+        "character": "\u2022",
+        "reason": "source glyph missing"
+      },
+      {
+        "character": "\u010b",
+        "reason": "No usable dot above mark was found. Try the AI accent."
+      },
+      {
+        "character": "\u0161",
+        "reason": "No usable caron mark was found. Try the AI accent."
+      },
+      {
+        "character": "\u016b",
+        "reason": "No usable macron mark was found. Try the AI accent."
+      },
+      {
+        "character": "\u00b1",
+        "reason": "source glyph missing"
+      },
+      {
+        "character": "\u203a",
+        "reason": "source glyph missing"
+      },
+      {
+        "character": "\u2039",
+        "reason": "source glyph missing"
+      },
+      {
+        "character": "\u00ab",
+        "reason": "source glyph missing"
+      },
+      {
+        "character": "\u00bb",
+        "reason": "source glyph missing"
+      },
+      {
+        "character": "\u201c",
+        "reason": "source glyph missing"
+      },
+      {
+        "character": "\u201d",
+        "reason": "source glyph missing"
+      },
+      {
+        "character": "\u2013",
+        "reason": "source glyph missing"
+      },
+      {
+        "character": "\u2014",
+        "reason": "source glyph missing"
+      },
+      {
+        "character": "\u2026",
+        "reason": "source glyph missing"
+      },
+      {
+        "character": "\u00f7",
+        "reason": "source glyph missing"
+      }
+    ]
+  },
+  {
+    "font": "Perfectsignature.ttf",
+    "built": 17,
+    "recipes": 17,
+    "issues": []
+  },
+  {
+    "font": "Quill & Ink Font.ttf",
+    "built": 11,
+    "recipes": 17,
+    "issues": [
+      {
+        "character": "\u0161",
+        "reason": "No usable caron mark was found. Try the AI accent."
+      },
+      {
+        "character": "\u00b1",
+        "reason": "source glyph missing"
+      },
+      {
+        "character": "\u203a",
+        "reason": "source glyph missing"
+      },
+      {
+        "character": "\u2039",
+        "reason": "source glyph missing"
+      },
+      {
+        "character": "\u00ab",
+        "reason": "source glyph missing"
+      },
+      {
+        "character": "\u00bb",
+        "reason": "source glyph missing"
+      }
+    ]
+  },
+  {
+    "font": "UtAyonahDemoRegular-xRA55.otf",
+    "built": 5,
+    "recipes": 17,
+    "issues": [
+      {
+        "character": "\u0161",
+        "reason": "No usable caron mark was found. Try the AI accent."
+      },
+      {
+        "character": "\u016b",
+        "reason": "No usable macron mark was found. Try the AI accent."
+      },
+      {
+        "character": "\u00b1",
+        "reason": "source glyph missing"
+      },
+      {
+        "character": "\u203a",
+        "reason": "source glyph missing"
+      },
+      {
+        "character": "\u2039",
+        "reason": "source glyph missing"
+      },
+      {
+        "character": "\u00ab",
+        "reason": "source glyph missing"
+      },
+      {
+        "character": "\u00bb",
+        "reason": "source glyph missing"
+      },
+      {
+        "character": "\u201c",
+        "reason": "source glyph missing"
+      },
+      {
+        "character": "\u201d",
+        "reason": "source glyph missing"
+      },
+      {
+        "character": "\u2013",
+        "reason": "source glyph missing"
+      },
+      {
+        "character": "\u2014",
+        "reason": "source glyph missing"
+      },
+      {
+        "character": "\u00f7",
+        "reason": "source glyph missing"
+      }
+    ]
+  },
+  {
+    "font": "monofonto.ttf",
+    "built": 17,
+    "recipes": 17,
+    "issues": []
+  },
+  {
+    "font": "ostrich-regular.ttf",
+    "built": 12,
+    "recipes": 17,
+    "issues": [
+      {
+        "character": "\u0161",
+        "reason": "No usable caron mark was found. Try the AI accent."
+      },
+      {
+        "character": "\u203a",
+        "reason": "source glyph missing"
+      },
+      {
+        "character": "\u2039",
+        "reason": "source glyph missing"
+      },
+      {
+        "character": "\u00ab",
+        "reason": "source glyph missing"
+      },
+      {
+        "character": "\u00bb",
+        "reason": "source glyph missing"
+      }
+    ]
+  }
+]

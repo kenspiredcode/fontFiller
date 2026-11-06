@@ -313,6 +313,17 @@ def sources(font, char):
             try: mark,_=split_top(contours(font,cmap.get(ord(other))))
             except ValueError: continue
             if family!='diaeresis' or is_pair(mark): return mark, 'existing '+family, False
+    # Approximate missing marks only after trying the font's own accents.
+    fallback = {'dot above': '.', 'macron': '-', 'caron': '^', 'ring': 'o'}.get(family)
+    if fallback:
+        items=contours(font,cmap.get(ord(fallback)))
+        if items:
+            if family=='caron':
+                transformed=[]
+                for item in items:
+                    rec=RecordingPen(); item.replay(TransformPen(rec,(1,0,0,-1,0,0))); transformed.append(rec)
+                items=transformed
+            return items, {'dot above':'period', 'macron':'hyphen', 'caron':'flipped circumflex', 'ring':'lowercase o'}[family], False
     if family!='diaeresis':
         raise ValueError('No usable '+family+' mark was found. Try the AI accent.')
     for other in 'äëüï':

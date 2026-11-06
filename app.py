@@ -21,7 +21,7 @@ import bulk_grid
 
 app = Flask(__name__, static_folder='static', static_url_path='/static')
 app.config['MAX_CONTENT_LENGTH'] = 4 * 1024 * 1024
-EXTRA_SYMBOLS = '‘’“”–—…•€£¥¢©®™¿¡«»‹›°×÷±µ§¶†‡' + ''.join(accents.FAMILIES)
+EXTRA_SYMBOLS = 'º‘’“”–—…•€£¥¢©®™¿¡«»‹›°×÷±µ§¶†‡' + ''.join(accents.FAMILIES)
 SYMBOLS = ''.join(chr(code) for code in range(33, 127)) + EXTRA_SYMBOLS
 FLIP_SOURCES = {'¿': '?', '¡': '!'}
 MODEL = 'fal-ai/gpt-image-1.5/edit'
@@ -202,12 +202,61 @@ def generate_image(data, character, model=MODEL, reference_count=0, style_emphas
         raise ValueError('fal returned an invalid image. Please try again.') from exc
 
 
-def build_font(data, image_data, char, scale=1.0, spacing=1.0, offset=0.0, flip=False):
+# Recipes use existing outlines only; missing sources leave the AI path available.
+REUSE_SOURCES = {'•': '.', '…': '.', '–': '-', '—': '-', '±': '+-', '÷': '.-',
+                 '‹': '<', '›': '>', '«': '<', '»': '>', 'º': 'o',
+                 '“': '”', '”': '“'}
+
+def reusable(font, char):
+    cmap=font.getBestCmap()
+    return char in REUSE_SOURCES and all(has_outline(font,cmap.get(ord(c))) for c in REUSE_SOURCES[char])
+
+def reuse_outline(font, char, height, baseline):
+    from fontTools.pens.recordingPen import DecomposingRecordingPen
+    cmap=font.getBestCmap(); result=DecomposingRecordingPen(font.getGlyphSet())
+    def place(ch, width=None, target_height=None, left=0, bottom=0, rotate=False):
+        name=cmap[ord(ch)]; x0,y0,x1,y1=glyph_bounds(font,name)
+        sx=(width/(x1-x0)) if width is not None else (target_height/(y1-y0) if target_height is not None else 1)
+        sy=target_height/(y1-y0) if target_height is not None else sx
+        matrix=(-sx if rotate else sx,0,0,-sy if rotate else sy,
+                left+(x1 if rotate else -x0)*sx,bottom+(y1 if rotate else -y0)*sy)
+        font.getGlyphSet()[name].draw(TransformPen(result,matrix))
+        return (x1-x0)*sx, (y1-y0)*sy
+    if char in '“”':
+        name=cmap[ord(REUSE_SOURCES[char])]; x0,y0,x1,y1=glyph_bounds(font,name)
+        place(REUSE_SOURCES[char],left=0,bottom=y0,rotate=True)
+    elif char=='•': place('.',target_height=height*.25,bottom=baseline+height*.32)
+    elif char=='º': place('o',target_height=height*.38,bottom=baseline+height*.62)
+    elif char in '–—':
+        name=cmap[ord('-')]; b=glyph_bounds(font,name)
+        place('-',width=height*(.65 if char=='–' else 1.0),target_height=b[3]-b[1],bottom=b[1])
+    elif char=='…':
+        b=glyph_bounds(font,cmap[ord('.')]); w=b[2]-b[0]
+        for i in range(3): place('.',left=i*w*1.8,bottom=b[1])
+    elif char in '‹›«»':
+        src=REUSE_SOURCES[char]; b=glyph_bounds(font,cmap[ord(src)]); w=(b[2]-b[0])*.8
+        for i in range(2 if char in '«»' else 1): place(src,width=w,target_height=b[3]-b[1],left=i*w*.7,bottom=b[1])
+    elif char=='±':
+        b=glyph_bounds(font,cmap[ord('+')]); w=b[2]-b[0]; h=b[3]-b[1]
+        place('+',left=0,bottom=b[1]); place('-',width=w,target_height=min(h*.14, height*.1),bottom=b[1]-height*.18)
+    elif char=='÷':
+        b=glyph_bounds(font,cmap[ord('-')]); w=b[2]-b[0]; y=(b[1]+b[3])/2
+        d=glyph_bounds(font,cmap[ord('.')]); dw=d[2]-d[0]; dh=d[3]-d[1]
+        place('-',bottom=b[1]); place('.',left=(w-dw)/2,bottom=y+height*.16); place('.',left=(w-dw)/2,bottom=y-height*.16-dh)
+    return result
+
+def build_font(data, image_data, char, scale=1.0, spacing=1.0, offset=0.0, flip=False, reuse=False):
     font = read_font(data); cmap = font.getBestCmap(); upem = font['head'].unitsPerEm
     source_name = cmap.get(ord(FLIP_SOURCES[char])) if flip and char in FLIP_SOURCES else None
     if flip and (char not in FLIP_SOURCES or not has_outline(font, source_name)):
         raise ValueError('The matching upright character is not available to flip.')
-    if flip:
+    if reuse and not reusable(font,char): raise ValueError('The source outline is not available.')
+    if reuse:
+        guide = next((cmap.get(ord(c)) for c in 'HO' if has_outline(font,cmap.get(ord(c)))), None)
+        if not guide: raise ValueError('This font needs a visible H or O to estimate glyph size.')
+        gb=glyph_bounds(font,guide); recording=reuse_outline(font,char,gb[3]-gb[1],gb[1])
+        bp=BoundsPen(font.getGlyphSet()); recording.replay(bp); x0,y0,x1,y1=bp.bounds
+    elif flip:
         # Decompose composites before transformation, so both outline formats can use them.
         from fontTools.pens.recordingPen import DecomposingRecordingPen
         glyphs = font.getGlyphSet()
@@ -232,7 +281,7 @@ def build_font(data, image_data, char, scale=1.0, spacing=1.0, offset=0.0, flip=
     elif char in '×÷±‹›': factor, bottom = .6, .15
     elif char == '…': factor, bottom = .15, 0
     else: factor, bottom = 1, 0
-    y_scale = (scale if flip else height * factor * scale / (y1-y0))
+    y_scale = (scale if flip or reuse else height * factor * scale / (y1-y0))
     x_scale = y_scale
     bearing = max(round(upem * .04), 1)
     is_fixed = bool(font['post'].isFixedPitch)
@@ -242,7 +291,9 @@ def build_font(data, image_data, char, scale=1.0, spacing=1.0, offset=0.0, flip=
     else:
         bearing = round((max(x0, 0) if flip else bearing) * spacing)
         advance = round((x1-x0)*x_scale) + 2*bearing
-    if flip:
+    if reuse:
+        transform=(x_scale,0,0,y_scale,bearing-x0*x_scale,y0*(1-y_scale)+offset*upem)
+    elif flip:
         # Rotate 180 degrees, keeping the width; lower the inverted form slightly.
         transform=(-x_scale,0,0,-y_scale,bearing+x1*x_scale,
                    guide_bounds[1] - height*.2*scale + y1*y_scale + offset*upem)
@@ -250,7 +301,7 @@ def build_font(data, image_data, char, scale=1.0, spacing=1.0, offset=0.0, flip=
         transform=(x_scale,0,0,y_scale,bearing-x0*x_scale,guide_bounds[1]+height*bottom-y0*y_scale+offset*upem)
     def draw(pen):
         target = TransformPen(pen, transform)
-        if flip: recording.replay(target)
+        if flip or reuse: recording.replay(target)
         else: parse_path(path, target)
     name = 'fontFiller_%04X' % ord(char)
     if name in font.getGlyphOrder():
@@ -337,7 +388,7 @@ def upload():
             accent_sources[ch]=accents.sources(font,ch)[1]
         except ValueError:
             accent_sources[ch]='AI accent'
-    info = dict(session=True, family=family, missing=missing, present=[c for c in SYMBOLS if c not in missing], flippable=[c for c, source in FLIP_SOURCES.items() if has_outline(font, cmap.get(ord(source)))], accent_sources=accent_sources)
+    info = dict(session=True, family=family, missing=missing, present=[c for c in SYMBOLS if c not in missing], flippable=[c for c, source in FLIP_SOURCES.items() if has_outline(font, cmap.get(ord(source)))], reusable=[c for c in REUSE_SOURCES if reusable(font,c)], accent_sources=accent_sources)
     if request.form.get('workspace') == '1': info['mark_groups'] = missing_mark_groups(data)
     return jsonify(info)
 
@@ -392,12 +443,15 @@ def missing_mark_groups(data):
 def bulk_prepare():
     data = uploaded_font(); added = []; issues = []
     for ch in missing_characters(data):
-        if ch not in FLIP_SOURCES and ch not in accents.BASES: continue
+        if ch not in FLIP_SOURCES and ch not in REUSE_SOURCES and ch not in accents.BASES: continue
         font = read_font(data); cmap = font.getBestCmap()
         try:
             if ch in FLIP_SOURCES:
                 if not has_outline(font, cmap.get(ord(FLIP_SOURCES[ch]))): continue
                 data = build_font(data, None, ch, flip=True)
+            elif ch in REUSE_SOURCES:
+                if not reusable(font,ch): continue
+                data = build_font(data,None,ch,reuse=True)
             else:
                 if not has_outline(font, cmap.get(ord(accents.BASES[ch]))): continue
                 accents.sources(font, ch)
@@ -510,8 +564,9 @@ def export():
     image=request.files.get('image')
     method=request.form.get('method','generated')
     flip = method == 'flip'
+    reuse = method == 'reuse'
     is_accent = method in ('accent','accent-ai')
-    if len(ch)!=1 or ch not in SYMBOLS or (not image and not flip and method!='accent'): raise ValueError('Generate a character first.')
+    if len(ch)!=1 or ch not in SYMBOLS or (not image and not flip and not reuse and method!='accent'): raise ValueError('Generate a character first.')
     if is_accent and ch not in accents.BASES: raise ValueError('Choose a supported accented letter.')
     image_data=image.read() if image else None
     def bounded(name, default, low, high):
@@ -522,7 +577,7 @@ def export():
     if is_accent:
         data,source,checks=accents.build(read_font(data),data,ch,bounded('scale',1,.5,1.5),bounded('offset',0,-.5,.5),bounded('horizontal',0,-.5,.5),image_data if method=='accent-ai' else None,trace_path,return_checks=True)
     else:
-        data=build_font(data,image_data,ch,bounded('scale',1,.5,1.5),bounded('spacing',1,0,3),bounded('offset',0,-.5,.5),flip=flip)
+        data=build_font(data,image_data,ch,bounded('scale',1,.5,1.5),bounded('spacing',1,0,3),bounded('offset',0,-.5,.5),flip=flip,reuse=reuse)
         source,warning='',False
     is_cff = 'CFF ' in read_font(data)
     extension, mime = ('otf', 'font/otf') if is_cff else ('ttf', 'font/ttf')

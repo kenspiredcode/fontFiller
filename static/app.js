@@ -1,5 +1,5 @@
 const $ = id => document.getElementById(id);
-let session = null, character = null, currentFile = null, candidateBlob = null, fontURL = null, generation = 0, revision = 0, timer = null, flippable = [], accentSources = {}, candidateMethod = 'generated', previewBlob = null, workspaceBusy = false;
+let session = null, character = null, currentFile = null, candidateBlob = null, fontURL = null, generation = 0, revision = 0, timer = null, flippable = [], reusable = [], accentSources = {}, candidateMethod = 'generated', previewBlob = null, workspaceBusy = false;
 const accentedLowercase = 'àèìǹòùẁỳâĉêĝĥîĵôŝûŵŷãĩñõũỹäëïöüẅÿåůāēīōūăĕğĭŏŭǎčďěǐľňǒřšťǔžċḋėġṅżőűáćéíḱĺńóŕśúẃýźçģķļņŗşţąęįųḍḥḳḷṇṛṣṭẓșț';
 const groups = [
   ['Capitals', 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'],
@@ -11,7 +11,7 @@ const groups = [
   ['Typographic punctuation', '‘’“”–—…•'],
   ['Currency & legal', '€£¥¢©®™'],
   ['International punctuation', '¿¡«»‹›'],
-  ['Useful marks', '°×÷±µ§¶†‡']
+  ['Useful marks', '°º×÷±µ§¶†‡']
 ];
 const samples = [
   'naïve Noël über möbel süd',
@@ -41,9 +41,9 @@ function ready() {
   $('generate').disabled = !session || !character || !$('rights').checked || unavailable || bulkBusy || workspaceBusy;
   $('use-character').disabled = !previewBlob || bulkBusy || workspaceBusy || !$('rights').checked;
   $('again').disabled = bulkBusy || workspaceBusy;
-  const flip = flippable.includes(character);
-  $('generate-text').textContent = accent ? (source === 'AI accent' ? 'Generate an accent' : 'Create accented letter') : flip ? 'Create from upright character' : 'Generate character';
-  $('method-note').textContent = unavailable ? 'This font needs a usable base letter and, for some letters, a separable i or j dot.' : accent ? (source === 'AI accent' ? 'No suitable mark was found. Generation sends a specimen to fal and may incur API charges.' : `Uses the font’s ${source}; no image generation or API charge.`) : flip ? 'Uses the existing upright character; no image generation or API charge.' : 'Generation sends a rendered specimen to fal and may incur API charges. Limited to 100 attempts per day, resetting at midnight Pacific time.';
+  const flip = flippable.includes(character), reuse = reusable.includes(character);
+  $('generate-text').textContent = accent ? (source === 'AI accent' ? 'Generate an accent' : 'Create accented letter') : reuse ? 'Create from font outlines' : flip ? 'Create from upright character' : 'Generate character';
+  $('method-note').textContent = unavailable ? 'This font needs a usable base letter and, for some letters, a separable i or j dot.' : accent ? (source === 'AI accent' ? 'No suitable mark was found. Generation sends a specimen to fal and may incur API charges.' : `Uses the font’s ${source}; no image generation or API charge.`) : reuse ? 'Uses existing outlines in your font; no image generation or API charge.' : flip ? 'Uses the existing upright character; no image generation or API charge.' : 'Generation sends a rendered specimen to fal and may incur API charges. Limited to 100 attempts per day, resetting at midnight Pacific time.';
 }
 function resetResult() { previewBlob=null; $('use-character').disabled=true; revision++; clearTimeout(timer); $('empty').hidden = false; $('result').hidden = true; $('download').removeAttribute('href'); if(fontURL) URL.revokeObjectURL(fontURL); fontURL = null; }
 function drawSymbols(missing = []) {
@@ -93,8 +93,8 @@ document.querySelector('.upload').addEventListener('keydown', e => { if (e.key =
 async function loadFont(file) {
   if(!file)return;
   resetBulk();
-  const token=++generation; session=null; character=null; flippable=[]; accentSources={}; currentFile=file; candidateBlob=null; resetResult(); drawSymbols(); ready(); $('font-info').hidden=true; $('sample-wrap').hidden=true; $('filename').textContent=file.name; status('Checking your font…');
-  try { const data=new FormData(); data.append('font',file); const info=await (await post('/api/font',data)).json(); if(token!==generation)return; const url=URL.createObjectURL(file); const face=new FontFace('FontFillerUpload', `url(${url})`); try { await face.load(); } catch (error) { URL.revokeObjectURL(url); throw new Error('Could not display this font in your browser.'); } if(token!==generation){URL.revokeObjectURL(url);return;} for(const existing of document.fonts) if(existing.family==='FontFillerUpload') document.fonts.delete(existing); document.fonts.add(face); if(uploadURL) URL.revokeObjectURL(uploadURL); uploadURL=url; session=info.session; flippable=info.flippable || []; accentSources=info.accent_sources || {}; character=info.missing[0] || null; drawSymbols(info.missing); drawSample(info.missing); $('font-info').textContent=`${info.family} · ${info.missing.length} missing or empty characters`; $('font-info').hidden=false; status(info.missing.length ? '' : 'No missing characters in this set. Choose one to try a replacement.'); ready(); }
+  const token=++generation; session=null; character=null; flippable=[]; reusable=[]; accentSources={}; currentFile=file; candidateBlob=null; resetResult(); drawSymbols(); ready(); $('font-info').hidden=true; $('sample-wrap').hidden=true; $('filename').textContent=file.name; status('Checking your font…');
+  try { const data=new FormData(); data.append('font',file); const info=await (await post('/api/font',data)).json(); if(token!==generation)return; const url=URL.createObjectURL(file); const face=new FontFace('FontFillerUpload', `url(${url})`); try { await face.load(); } catch (error) { URL.revokeObjectURL(url); throw new Error('Could not display this font in your browser.'); } if(token!==generation){URL.revokeObjectURL(url);return;} for(const existing of document.fonts) if(existing.family==='FontFillerUpload') document.fonts.delete(existing); document.fonts.add(face); if(uploadURL) URL.revokeObjectURL(uploadURL); uploadURL=url; session=info.session; flippable=info.flippable || []; reusable=info.reusable || []; accentSources=info.accent_sources || {}; character=info.missing[0] || null; drawSymbols(info.missing); drawSample(info.missing); $('font-info').textContent=`${info.family} · ${info.missing.length} missing or empty characters`; $('font-info').hidden=false; status(info.missing.length ? '' : 'No missing characters in this set. Choose one to try a replacement.'); ready(); }
   catch(e){if(token===generation)status(e.message);}
 }
 $('font').addEventListener('change', e => { const file = e.target.files[0]; e.target.value = ''; loadFont(file); });
@@ -109,20 +109,20 @@ upload.addEventListener('drop', e => {
 $('rights').addEventListener('change', ready);
 async function create(forceAI=false){
  if(!session||!character||!$('rights').checked||bulkBusy||workspaceBusy)return;
- const token=++generation, activeCharacter=character, flip=flippable.includes(character), accent=!!accentSources[character];
+ const token=++generation, activeCharacter=character, flip=flippable.includes(character), reuse=reusable.includes(character), accent=!!accentSources[character];
  const useAI=accent && (forceAI || accentSources[character]==='AI accent');
  resetResult(); $('generate').disabled=true; $('again').disabled=true;
- status(useAI ? `Generating an accent for ${activeCharacter}… This can take a minute.` : accent ? `Preparing ${activeCharacter} from your font…` : flip ? `Preparing ${activeCharacter} from its upright character…` : `Generating ${activeCharacter}… This can take a minute.`);
+ status(useAI ? `Generating an accent for ${activeCharacter}… This can take a minute.` : accent ? `Preparing ${activeCharacter} from your font…` : reuse ? `Preparing ${activeCharacter} from your font…` : flip ? `Preparing ${activeCharacter} from its upright character…` : `Generating ${activeCharacter}… This can take a minute.`);
  try {
-   candidateMethod = accent ? (useAI ? 'accent-ai' : 'accent') : flip ? 'flip' : 'generated'; candidateBlob = null;
+   candidateMethod = accent ? (useAI ? 'accent-ai' : 'accent') : reuse ? 'reuse' : flip ? 'flip' : 'generated'; candidateBlob = null;
    if (candidateMethod==='generated' || candidateMethod==='accent-ai') {
      const data=new FormData(); data.append('font',currentFile); data.append('character',activeCharacter); data.append('method',candidateMethod);
      const result=await (await post('/api/generate',data)).json(); if(token!==generation)return;
      candidateBlob=await (await fetch(result.image)).blob(); if(token!==generation)return;
    }
    $('candidate').textContent='…'; $('candidate').style.fontFamily=''; $('candidate-label').textContent=activeCharacter;
-   $('candidate-description').textContent=accent ? (useAI ? 'AI-generated accent on your original letter.' : `Accent made from the font’s ${accentSources[activeCharacter]}.`) : flip ? 'Rotated from the existing upright character in your font.' : 'Your traced character, shown in the updated font.';
-   $('again').hidden=flip; $('again').textContent=accent ? (useAI ? '↻ Generate another AI accent' : '✳ Try an AI accent (may incur charges)') : '↻ Generate another';
+   $('candidate-description').textContent=accent ? (useAI ? 'AI-generated accent on your original letter.' : `Accent made from the font’s ${accentSources[activeCharacter]}.`) : reuse ? 'Made from existing outlines in your font.' : flip ? 'Rotated from the existing upright character in your font.' : 'Your traced character, shown in the updated font.';
+   $('again').hidden=flip||reuse; $('again').textContent=accent ? (useAI ? '↻ Generate another AI accent' : '✳ Try an AI accent (may incur charges)') : '↻ Generate another';
    $('spacing-control').hidden=accent; $('horizontal-control').hidden=!accent; $('fixed-note').hidden=accent; $('size-label').textContent=accent?'Accent size':'Size';
    $('preview').style.fontFamily=''; $('preview').textContent=exampleForCharacter(activeCharacter);
    for(const id of controls) $(id).value=(id==='offset'||id==='horizontal')?0:100;
@@ -151,7 +151,7 @@ async function adoptWorkspace(file, run) {
   for(const old of document.fonts) if(old.family==='FontFillerUpload') document.fonts.delete(old);
   document.fonts.add(face); if(uploadURL)URL.revokeObjectURL(uploadURL); uploadURL=url;
   currentFile=file; bulkFont=file; bulkRemaining=info.missing; bulkMarkGroups=info.mark_groups || {};
-  flippable=info.flippable || []; accentSources=info.accent_sources || {};
+  flippable=info.flippable || []; reusable=info.reusable || []; accentSources=info.accent_sources || {};
   // Keep only candidates that still correspond to missing characters/marks.
   bulkCandidates=bulkCandidates.filter(c=>{
     if(c.kind!=='mark') return bulkRemaining.includes(c.character);

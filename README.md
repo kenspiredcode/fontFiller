@@ -23,6 +23,8 @@ The experiment is in `experiment/`. Font files are excluded from the repository;
 
 The page maintains an in-browser workspace. After reviewing an individual preview, choose **Use this character in workspace** to add it to the current font; select any character in the map to make another replacement. Bulk preparation and accepted bulk candidates update the same workspace. Download the workspace font to keep the changes; reloading the page discards the in-progress workspace.
 
+When available, existing periods, hyphens, comparison signs, plus signs, quotes, and lowercase o can also be reused to build punctuation and selected accent marks. These are starting points to review in the preview; bulk preparation includes the same outline recipes.
+
 Accent previews include size and position controls. New letters inherit the base letter’s advance and available pair kerning; an overhang warning flags marks extending beyond the advance. When an i or j dot cannot be separated safely, letters that replace that dot cannot be built. Floating accents are checked for possible collisions, and attached accents for possible disconnection. When the default placement triggers a check, the app tries a small automatic position adjustment; approximate outline checks and adjusted results are flagged for review in individual and bulk previews. Manual position adjustments are applied relative to the corrected default and are checked without overriding them. AI accent generation uses the same daily limit and requires review of the resulting mark.
 
 ## Bulk workflow
